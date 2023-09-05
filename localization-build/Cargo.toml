@@ -1,0 +1,12 @@
+[package]
+name = "localization-build"
+version = "0.1.0"
+edition = "2021"
+description = "t! macro, the easiest way."
+license = "MIT"
+documentation = "https://docs.rs/localization-build"
+repository = "https://github.com/neodyland/localization"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]

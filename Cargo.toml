@@ -1,0 +1,3 @@
+[workspace]
+members = ["./localization-macros", "./localization", "./example", "./localization-build"]
+resolver = "2"
