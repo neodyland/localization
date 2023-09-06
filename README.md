@@ -33,8 +33,8 @@ fn main() {
 ```
 
 ```rust
-fn main() {
 // main.rs
+fn main() {
     let name = "John";
     let age = 42;
     let s = t!("ja-JP","default:hello", name, age);
