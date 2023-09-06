@@ -1,6 +1,6 @@
 [package]
 name = "localization"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "t! macro, the easiest way."
 license = "MIT"
@@ -10,4 +10,4 @@ repository = "https://github.com/neodyland/localization"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-localization-macros = { path = "../localization-macros", version = "0.1.0" }
+localization-macros = { path = "../localization-macros", version = "0.1.1" }

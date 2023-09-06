@@ -33,32 +33,39 @@ fn append(l: Literal) -> Literal {
     Literal::string(&s)
 }
 
-fn replacement_to_tokens(r: &Vec<(TokenTree, Option<TokenTree>)>) -> TokenStream {
+fn into_literal(ts: &TokenStream) -> Literal {
+    let mut ts = ts.clone().into_iter();
+    let mut s = String::new();
+    while let Some(item) = ts.next() {
+        match item {
+            TokenTree::Literal(l) => {
+                s.push_str(&t::literal_trim(l));
+            }
+            TokenTree::Punct(p) => {
+                s.push_str(&p.to_string());
+            }
+            TokenTree::Ident(i) => {
+                s.push_str(&i.to_string());
+            }
+            TokenTree::Group(g) => {
+                s.push_str(&g.to_string());
+            }
+        }
+    }
+    Literal::string(&s)
+}
+
+fn replacement_to_tokens(r: &Vec<(TokenStream, Option<TokenStream>)>) -> TokenStream {
     let mut tokens = TokenStream::new();
     for (key, value) in r {
-        if let Some(value) = value {
-            let key = match key {
-                TokenTree::Ident(l) => Literal::string(&l.to_string()),
-                TokenTree::Literal(l) => l.clone(),
-                _ => panic!("Invalid replacement key"),
-            };
-            let key = append(key);
-            tokens.extend(quote! {
-                value = value.replace(#key, #value);
-            });
-        } else {
-            let key_str = match key {
-                TokenTree::Ident(l) => Literal::string(&l.to_string()),
-                _ => panic!("Invalid replacement key"),
-            };
-            let key_str = append(key_str);
-            tokens.extend(quote! {
-                value = value.replace(
-                    #key_str,
-                    &format!("{}", #key)
-                );
-            });
-        }
+        let value = if let Some(value) = value { value } else { key };
+        let key = append(into_literal(key));
+        tokens.extend(quote! {
+            value = value.replace(
+                #key,
+                &format!("{}", #value)
+            );
+        });
     }
     tokens
 }
