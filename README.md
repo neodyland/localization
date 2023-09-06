@@ -43,6 +43,10 @@ fn main() {
 }
 ```
 
+## Documentation
+
+The documentation is available on [docs.rs](https://docs.rs/localization).
+
 ## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
