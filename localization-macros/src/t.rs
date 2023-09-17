@@ -44,7 +44,7 @@ fn next_is(items: &mut IntoIter, c: char) -> Option<Punct> {
 
 pub(crate) fn literal_trim(l: Literal) -> String {
     let mut s = l.to_string();
-    if s.starts_with("\"") {
+    if s.starts_with('\"') {
         s = s[1..s.len() - 1].to_string();
     }
     s
@@ -53,11 +53,10 @@ pub(crate) fn literal_trim(l: Literal) -> String {
 fn literal_string(items: &mut IntoIter) -> Option<String> {
     items
         .next()
-        .map(|item| match item {
+        .and_then(|item| match item {
             TokenTree::Literal(item) => Some(literal_trim(item)),
             _ => None,
         })
-        .flatten()
 }
 
 pub fn parse_t(

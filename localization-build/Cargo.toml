@@ -1,6 +1,6 @@
 [package]
 name = "localization-build"
-version = "0.1.0"
+version = "0.1.2"
 edition = "2021"
 description = "t! macro, the easiest way."
 license = "MIT"

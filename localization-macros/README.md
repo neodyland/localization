@@ -6,14 +6,17 @@
 
 localization is a lightweight localization implementation written in Rust.
 
-Embeds translation data into the binary at build time, so it runs faster.
+Easy, error on compile time, zero runtime dependency.
 
 ## Getting Started
 
 ### Install
 
-```
-cargo add localization localization-build
+```toml
+[dependencies]
+localization = "0.1.2"
+[build-dependencies]
+localization-build = "0.1.2"
 ```
 
 ### Create files
@@ -29,6 +32,7 @@ cargo add localization localization-build
 // build.rs
 fn main() {
     localization_build::set_root("./translations");
+    localization_build::set_default_locale("en-US");
 }
 ```
 
@@ -37,7 +41,7 @@ fn main() {
 fn main() {
     let name = "John";
     let age = 42;
-    let s = t!("ja-JP","default:hello", name, age);
+    let s = t!("en-US","default:hello", name, age);
     println!("{}", s);
     // output: Hello John, you are 42 years old!
 }

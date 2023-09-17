@@ -57,7 +57,7 @@ fn json_kv_obj(m: &Map<String, Value>) -> Vec<(String, String)> {
 
 fn json_kv(s: String) -> Vec<(String, String)> {
     let json: Value = serde_json::from_str(&s).unwrap();
-    json.as_object().map(|m| json_kv_obj(m)).unwrap_or(vec![])
+    json.as_object().map(json_kv_obj).unwrap_or(vec![])
 }
 
 type H = HashMap<(String, String), String>;

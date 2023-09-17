@@ -7,20 +7,33 @@ use proc_macro2::{Literal, TokenStream, TokenTree};
 use quote::quote;
 use t::{parse_t, RawTokenStream};
 
-fn hashmap_to_tokens(h: &HashMap<String, String>) -> TokenStream {
-    let mut tokens = TokenStream::new();
-    tokens.extend(quote! {
-        use std::collections::HashMap;
-        let mut kv = HashMap::new();
-    });
-    for (key, value) in h {
-        let key = Literal::string(&key);
-        let value = Literal::string(&value);
-        tokens.extend(quote! {
-            kv.insert(#key, #value);
+fn hashmap_to_tokens(h: &HashMap<String, String>, default_locale: String) -> (TokenStream,Vec<TokenStream>, usize) {
+    let mut locales = Vec::new();
+    let mut values = Vec::new();
+    let mut default_index = 0;
+    for (i, (key, value)) in h.iter().enumerate() {
+        if key == &default_locale {
+            default_index = i + 1;
+        }
+        let key = Literal::string(key);
+        locales.push(quote! {
+            #key => #i,
         });
+        let value = Literal::string(value);
+        values.push(value);
     }
-    tokens
+    if default_index == 0 {
+        panic!("Default locale not found");
+    }
+    (
+        quote! { 
+            let values = [
+                #(#values),*
+            ];
+        },
+        locales,
+        default_index - 1,
+    )
 }
 
 fn append(l: Literal) -> Literal {
@@ -34,9 +47,9 @@ fn append(l: Literal) -> Literal {
 }
 
 fn into_literal(ts: &TokenStream) -> Literal {
-    let mut ts = ts.clone().into_iter();
+    let ts = ts.clone().into_iter();
     let mut s = String::new();
-    while let Some(item) = ts.next() {
+    for item in ts {
         match item {
             TokenTree::Literal(l) => {
                 s.push_str(&t::literal_trim(l));
@@ -74,7 +87,7 @@ fn replacement_to_tokens(r: &Vec<(TokenStream, Option<TokenStream>)>) -> TokenSt
 /// # Example
 /// ```
 /// use localization::t;
-/// fn main() {
+/// fn example() {
 ///   let name = "John";
 ///   let age = 42;
 ///   let s = t!("ja-JP","default:hello", name, age);
@@ -88,20 +101,49 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
         Some(map) => map,
         None => panic!("Key not found: {}", key),
     };
-    let default = match map.get(&default_locale()) {
-        Some(default) => default,
-        None => panic!("Default locale text not found: {} {}", locale, key),
-    };
-    let default = Literal::string(default);
     let replacement = replacement_to_tokens(&replacement);
-    let map = hashmap_to_tokens(map);
+    let (values, names, default_index) = hashmap_to_tokens(map, default_locale());
     quote!(
         {
-            #map;
-            let value = kv.get(#locale).cloned();
-            let mut value = value.unwrap_or(#default).to_string();
+            #values;
+            let mut value = values[match format!("{}",#locale).as_str() {
+                #(#names)*
+                _ => #default_index,
+            }].to_string();
             #replacement
             value
+        }
+    )
+    .into()
+}
+
+#[proc_macro]
+pub fn all(_item: RawTokenStream) -> RawTokenStream {
+    let all = load::get_locale();
+    let mut all_coll = Vec::new();
+    for (key, map) in all {
+        let mut map_coll = Vec::new();
+        for (key, value) in map {
+            let key = Literal::string(key);
+            let value = Literal::string(value);
+            map_coll.push(quote! {
+                map.insert(#key, #value);
+            });
+        }
+        let key = Literal::string(key);
+        all_coll.push(quote! {
+            let mut map = std::collections::HashMap::<&'static str, &'static str>::new();
+            #(#map_coll)*
+            all.insert(#key, map);
+        });
+    }
+    quote!(
+        {
+            let mut all = std::collections::HashMap::new();
+            #(
+                #all_coll
+            )*
+            all
         }
     )
     .into()

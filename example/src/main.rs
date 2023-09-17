@@ -1,4 +1,5 @@
 use localization::t;
+use localization::all;
 
 struct Data {
     pub lang: String,
@@ -11,6 +12,10 @@ fn main() {
         lang: "ja-JP".to_string(),
         age: 42,
     };
-    let s = t!(&data.lang.as_str(), "default:hello", name, age = data.age);
+    let s = t!(data.lang, "default:hello", name, age = data.age);
     println!("{}", s);
+    // こんにちはJohnさん、42歳ですね！
+    let all = all!();
+    println!("{:?}", all);
+    // {"default:hello": {"en-US": "Hello {{name}}, you are {{age}} years old!", "ja-JP": "こんにちは{{name}}さん、{{age}}歳ですね！"}}
 }
