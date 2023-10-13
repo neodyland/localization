@@ -7,7 +7,10 @@ use proc_macro2::{Literal, TokenStream, TokenTree};
 use quote::quote;
 use t::{parse_t, RawTokenStream};
 
-fn hashmap_to_tokens(h: &HashMap<String, String>, default_locale: String) -> (TokenStream,Vec<TokenStream>, usize) {
+fn hashmap_to_tokens(
+    h: &HashMap<String, String>,
+    default_locale: String,
+) -> (TokenStream, Vec<TokenStream>, usize) {
     let mut locales = Vec::new();
     let mut values = Vec::new();
     let mut default_index = 0;
@@ -26,7 +29,7 @@ fn hashmap_to_tokens(h: &HashMap<String, String>, default_locale: String) -> (To
         panic!("Default locale not found");
     }
     (
-        quote! { 
+        quote! {
             let values = [
                 #(#values),*
             ];
@@ -145,6 +148,21 @@ pub fn all(_item: RawTokenStream) -> RawTokenStream {
             )*
             all
         }
+    )
+    .into()
+}
+
+/// get all localization
+#[proc_macro]
+pub fn loc(_item: RawTokenStream) -> RawTokenStream {
+    let loc = load::get_locale_list();
+    let loc = loc.iter().map(|x| Literal::string(x));
+    quote!(
+        [
+            #(
+                #loc
+            ),*
+        ]
     )
     .into()
 }

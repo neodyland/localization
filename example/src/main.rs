@@ -1,5 +1,6 @@
-use localization::t;
 use localization::all;
+use localization::loc;
+use localization::t;
 
 struct Data {
     pub lang: String,
@@ -18,4 +19,7 @@ fn main() {
     let all = all!();
     println!("{:?}", all);
     // {"default:hello": {"en-US": "Hello {{name}}, you are {{age}} years old!", "ja-JP": "こんにちは{{name}}さん、{{age}}歳ですね！"}}
+    let locales = loc!();
+    println!("locale list {:?}", locales);
+    // locale list ["en-US", "ja-JP"]
 }

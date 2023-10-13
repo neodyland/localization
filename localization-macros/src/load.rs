@@ -126,3 +126,11 @@ fn init_locale() -> LH {
 pub fn get_locale() -> &'static LH {
     LOCALE.get_or_init(init_locale)
 }
+
+pub fn get_locale_list() -> Vec<String> {
+    let mut vec = vec![];
+    for (key, _) in get_locale().values().next().unwrap() {
+        vec.push(key.clone());
+    }
+    vec
+}

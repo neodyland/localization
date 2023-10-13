@@ -51,12 +51,10 @@ pub(crate) fn literal_trim(l: Literal) -> String {
 }
 
 fn literal_string(items: &mut IntoIter) -> Option<String> {
-    items
-        .next()
-        .and_then(|item| match item {
-            TokenTree::Literal(item) => Some(literal_trim(item)),
-            _ => None,
-        })
+    items.next().and_then(|item| match item {
+        TokenTree::Literal(item) => Some(literal_trim(item)),
+        _ => None,
+    })
 }
 
 pub fn parse_t(
