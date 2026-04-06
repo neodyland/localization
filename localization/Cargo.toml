@@ -9,4 +9,4 @@ readme.workspace = true
 documentation = "https://docs.rs/localization"
 
 [dependencies]
-localization-macros = { path = "../localization-macros", version = "0.1.3" }
+localization-macros = { path = "../localization-macros", version = "0.1.4" }
