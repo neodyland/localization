@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "example"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "localization",
  "localization-build",
@@ -18,18 +18,18 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "localization"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "localization-macros",
 ]
 
 [[package]]
 name = "localization-build"
-version = "0.1.4"
+version = "0.1.5"
 
 [[package]]
 name = "localization-macros"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "proc-macro2",
  "quote",

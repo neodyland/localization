@@ -3,9 +3,11 @@ members = ["./localization-macros", "./localization", "./example", "./localizati
 resolver = "3"
 
 [workspace.package]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
+categories = ["localization", "internationalization"]
 description = "t! macro, the easiest way."
 license = "MIT"
+license-file = "./LICENSE"
 repository = "https://github.com/neodyland/localization"
 readme = "./README.md"

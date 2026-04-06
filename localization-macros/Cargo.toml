@@ -6,6 +6,8 @@ description.workspace = true
 license.workspace = true
 repository.workspace = true
 readme.workspace = true
+categories.workspace = true
+license-file.workspace = true
 documentation = "https://docs.rs/localization-macros"
 
 [dependencies]
