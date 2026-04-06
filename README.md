@@ -14,9 +14,9 @@ Easy, error on compile time, zero runtime dependency.
 
 ```toml
 [dependencies]
-localization = "0.1.2"
+localization = "0.1.3"
 [build-dependencies]
-localization-build = "0.1.2"
+localization-build = "0.1.3"
 ```
 
 ### Create files

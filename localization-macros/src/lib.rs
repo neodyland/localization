@@ -5,17 +5,17 @@ use std::collections::HashMap;
 use load::{default_locale, get_locale};
 use proc_macro2::{Literal, TokenStream, TokenTree};
 use quote::quote;
-use t::{parse_t, RawTokenStream};
+use t::{RawTokenStream, parse_t};
 
 fn hashmap_to_tokens(
     h: &HashMap<String, String>,
-    default_locale: String,
+    default_locale: &str,
 ) -> (TokenStream, Vec<TokenStream>, usize) {
     let mut locales = Vec::new();
     let mut values = Vec::new();
     let mut default_index = 0;
     for (i, (key, value)) in h.iter().enumerate() {
-        if key == &default_locale {
+        if key == default_locale {
             default_index = i + 1;
         }
         let key = Literal::string(key);
@@ -55,10 +55,10 @@ fn into_literal(ts: &TokenStream) -> Literal {
     for item in ts {
         match item {
             TokenTree::Literal(l) => {
-                s.push_str(&t::literal_trim(l));
+                s.push_str(&t::trim_literal(l));
             }
             TokenTree::Punct(p) => {
-                s.push_str(&p.to_string());
+                s.push(p.as_char());
             }
             TokenTree::Ident(i) => {
                 s.push_str(&i.to_string());
@@ -71,7 +71,7 @@ fn into_literal(ts: &TokenStream) -> Literal {
     Literal::string(&s)
 }
 
-fn replacement_to_tokens(r: &Vec<(TokenStream, Option<TokenStream>)>) -> TokenStream {
+fn replacement_to_tokens(r: &[(TokenStream, Option<TokenStream>)]) -> TokenStream {
     let mut tokens = TokenStream::new();
     for (key, value) in r {
         let value = if let Some(value) = value { value } else { key };
@@ -102,14 +102,18 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
     let (locale, key, replacement) = parse_t(item);
     let map = match get_locale().get(&key) {
         Some(map) => map,
-        None => panic!("Key not found: {}", key),
+        None => panic!(
+            "Key not found: {}. Available keys: {:?}",
+            key,
+            get_locale().keys()
+        ),
     };
     let replacement = replacement_to_tokens(&replacement);
-    let (values, names, default_index) = hashmap_to_tokens(map, default_locale());
+    let (values, names, default_index) = hashmap_to_tokens(map, &default_locale());
     quote!(
         {
             #values;
-            let mut value = values[match format!("{}",#locale).as_str() {
+            let mut value = values[match format!("{}", #locale).as_str() {
                 #(#names)*
                 _ => #default_index,
             }].to_string();

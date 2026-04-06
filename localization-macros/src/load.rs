@@ -1,10 +1,10 @@
-use once_cell::sync::OnceCell;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::read_dir as std_read_dir;
 use std::io::Result as IoResult;
 use std::path::PathBuf;
+use std::sync::LazyLock;
 
 fn read_dir_dirs(path: &str) -> IoResult<Vec<OsString>> {
     let mut dirs = vec![];
@@ -64,9 +64,9 @@ type H = HashMap<(String, String), String>;
 
 fn dir_to_json(path: PathBuf) -> H {
     let mut hash = H::new();
-    let all = read_dir_get_all_files(path.clone()).unwrap();
+    let all_files = read_dir_get_all_files(path.clone()).unwrap();
     let path = path.to_string_lossy().to_string();
-    for file_name in all {
+    for file_name in all_files {
         let file_content = std::fs::read_to_string(format!("{}/{}", path, file_name)).unwrap();
         let file_name = file_name
             .chars()
@@ -85,8 +85,8 @@ fn dir_to_json(path: PathBuf) -> H {
     hash
 }
 
-type LH = HashMap<String, HashMap<String, String>>;
-static LOCALE: OnceCell<LH> = OnceCell::new();
+type LocaleKV = HashMap<String, HashMap<String, String>>;
+static LOCALE: LazyLock<LocaleKV> = LazyLock::new(init_locale);
 
 fn root() -> String {
     std::env::var("LOCALIZATION_ROOT").unwrap_or("./translations".to_string())
@@ -96,19 +96,19 @@ pub fn default_locale() -> String {
     std::env::var("LOCALIZATION_DEFAULT").unwrap_or("en-US".to_string())
 }
 
-fn backhash(h: LH) -> LH {
-    let mut new = LH::new();
+fn backhash(h: LocaleKV) -> LocaleKV {
+    let mut new = LocaleKV::new();
     for (locale, map) in h {
         for (key, value) in map {
-            let file_map = new.entry(key).or_insert(HashMap::new());
+            let file_map = new.entry(key).or_default();
             file_map.insert(locale.clone(), value);
         }
     }
     new
 }
 
-fn init_locale() -> LH {
-    let mut hash = LH::new();
+fn init_locale() -> LocaleKV {
+    let mut hash = LocaleKV::new();
     let locales = read_dir_dirs(&root()).unwrap();
     for locale in locales {
         let locale_path = locale.clone();
@@ -123,14 +123,18 @@ fn init_locale() -> LH {
     backhash(hash)
 }
 
-pub fn get_locale() -> &'static LH {
-    LOCALE.get_or_init(init_locale)
+pub fn get_locale() -> &'static LocaleKV {
+    &LOCALE
 }
 
 pub fn get_locale_list() -> Vec<String> {
-    let mut vec = vec![];
-    for (key, _) in get_locale().values().next().unwrap() {
-        vec.push(key.clone());
+    let mut locs = vec![];
+    for entry in get_locale().values() {
+        for loc in entry.keys() {
+            if !locs.contains(loc) {
+                locs.push(loc.clone());
+            }
+        }
     }
-    vec
+    locs
 }

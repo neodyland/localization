@@ -1,5 +1,5 @@
 pub use proc_macro::TokenStream as RawTokenStream;
-use proc_macro2::{token_stream::IntoIter, Literal, Punct, TokenStream, TokenTree};
+use proc_macro2::{Literal, Punct, TokenStream, TokenTree, token_stream::IntoIter};
 
 fn until_comma(items: &mut IntoIter) -> Option<TokenStream> {
     let mut ts = TokenStream::new();
@@ -19,11 +19,7 @@ fn until_comma(items: &mut IntoIter) -> Option<TokenStream> {
             }
         }
     }
-    if ts.is_empty() {
-        None
-    } else {
-        Some(ts)
-    }
+    if ts.is_empty() { None } else { Some(ts) }
 }
 
 fn next_is(items: &mut IntoIter, c: char) -> Option<Punct> {
@@ -42,7 +38,7 @@ fn next_is(items: &mut IntoIter, c: char) -> Option<Punct> {
     }
 }
 
-pub(crate) fn literal_trim(l: Literal) -> String {
+pub fn trim_literal(l: Literal) -> String {
     let mut s = l.to_string();
     if s.starts_with('\"') {
         s = s[1..s.len() - 1].to_string();
@@ -52,7 +48,7 @@ pub(crate) fn literal_trim(l: Literal) -> String {
 
 fn literal_string(items: &mut IntoIter) -> Option<String> {
     items.next().and_then(|item| match item {
-        TokenTree::Literal(item) => Some(literal_trim(item)),
+        TokenTree::Literal(item) => Some(trim_literal(item)),
         _ => None,
     })
 }

@@ -1,3 +1,11 @@
 [workspace]
 members = ["./localization-macros", "./localization", "./example", "./localization-build"]
-resolver = "2"
+resolver = "3"
+
+[workspace.package]
+version = "0.1.4"
+edition = "2024"
+description = "t! macro, the easiest way."
+license = "MIT"
+repository = "https://github.com/neodyland/localization"
+readme = "./README.md"
