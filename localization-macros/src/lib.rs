@@ -7,51 +7,9 @@ mod t;
 use std::collections::HashMap;
 
 use load::{default_locale, get_locale};
-use proc_macro2::{Literal, TokenStream, TokenTree};
-use quote::quote;
+use proc_macro2::{Ident, Literal, TokenStream, TokenTree};
+use quote::{format_ident, quote};
 use t::{RawTokenStream, parse_t};
-
-fn hashmap_to_tokens(
-    h: &HashMap<String, String>,
-    default_locale: &str,
-) -> (TokenStream, Vec<TokenStream>, usize) {
-    let mut locales = Vec::new();
-    let mut values = Vec::new();
-    let mut default_index = 0;
-    for (i, (key, value)) in h.iter().enumerate() {
-        if key == default_locale {
-            default_index = i + 1;
-        }
-        let key = Literal::string(key);
-        locales.push(quote! {
-            #key => #i,
-        });
-        let value = Literal::string(value);
-        values.push(value);
-    }
-    if default_index == 0 {
-        panic!("Default locale not found");
-    }
-    (
-        quote! {
-            let values = [
-                #(#values),*
-            ];
-        },
-        locales,
-        default_index - 1,
-    )
-}
-
-fn append(l: Literal) -> Literal {
-    let s = l.to_string();
-    let mut s = s[1..s.len() - 1].to_string();
-    s.insert(0, '{');
-    s.insert(0, '{');
-    s.insert(s.len(), '}');
-    s.insert(s.len(), '}');
-    Literal::string(&s)
-}
 
 fn into_literal(ts: &TokenStream) -> Literal {
     let ts = ts.clone().into_iter();
@@ -75,19 +33,107 @@ fn into_literal(ts: &TokenStream) -> Literal {
     Literal::string(&s)
 }
 
-fn replacement_to_tokens(r: &[(TokenStream, Option<TokenStream>)]) -> TokenStream {
-    let mut tokens = TokenStream::new();
-    for (key, value) in r {
+fn replacement_bindings(
+    r: &[(TokenStream, Option<TokenStream>)],
+) -> (TokenStream, Vec<(String, Ident)>) {
+    let mut bindings = TokenStream::new();
+    let mut replacements = Vec::new();
+    for (i, (key, value)) in r.iter().enumerate() {
         let value = value.as_ref().map_or(key, |value| value);
-        let key = append(into_literal(key));
-        tokens.extend(quote! {
-            value = value.replace(
-                #key,
-                &format!("{}", #value)
-            );
+        let name = t::trim_literal(into_literal(key));
+        let placeholder = format!("{{{{{name}}}}}");
+        let ident = format_ident!("__localization_replacement_{i}");
+        bindings.extend(quote! {
+            let #ident = ::std::format!("{}", #value);
+        });
+        replacements.push((placeholder, ident));
+    }
+    (bindings, replacements)
+}
+
+fn template_to_tokens(template: &str, replacements: &[(String, Ident)]) -> TokenStream {
+    let mut pos = 0;
+    let mut literal_len = 0;
+    let mut parts = Vec::new();
+    let mut replacement_lens = Vec::new();
+
+    while pos < template.len() {
+        let mut next = None;
+        for (placeholder, ident) in replacements {
+            if let Some(relative_start) = template[pos..].find(placeholder) {
+                let start = pos + relative_start;
+                if next
+                    .as_ref()
+                    .is_none_or(|(next_start, _, _): &(usize, usize, Ident)| start < *next_start)
+                {
+                    next = Some((start, placeholder.len(), ident.clone()));
+                }
+            }
+        }
+
+        let Some((start, placeholder_len, ident)) = next else {
+            let literal = &template[pos..];
+            literal_len += literal.len();
+            let literal = Literal::string(literal);
+            parts.push(quote! {
+                value.push_str(#literal);
+            });
+            break;
+        };
+
+        if start > pos {
+            let literal = &template[pos..start];
+            literal_len += literal.len();
+            let literal = Literal::string(literal);
+            parts.push(quote! {
+                value.push_str(#literal);
+            });
+        }
+        parts.push(quote! {
+            value.push_str(#ident.as_str());
+        });
+        replacement_lens.push(quote! {
+            #ident.len()
+        });
+        pos = start + placeholder_len;
+    }
+
+    quote! {
+        {
+            let mut value = ::std::string::String::with_capacity(#literal_len #(+ #replacement_lens)*);
+            #(#parts)*
+            value
+        }
+    }
+}
+
+fn localized_string_to_tokens(
+    locale: &TokenStream,
+    translations: &HashMap<String, String>,
+    default_locale: &str,
+    replacements: &[(String, Ident)],
+) -> TokenStream {
+    let mut arms = Vec::new();
+    let mut default_arm = None;
+
+    for (name, value) in translations {
+        let name_literal = Literal::string(name);
+        let value = template_to_tokens(value, replacements);
+        if name == default_locale {
+            default_arm = Some(value.clone());
+        }
+        arms.push(quote! {
+            #name_literal => #value,
         });
     }
-    tokens
+
+    let default_arm = default_arm.unwrap_or_else(|| panic!("Default locale not found"));
+    quote! {
+        match ::core::convert::AsRef::<str>::as_ref(&#locale) {
+            #(#arms)*
+            _ => #default_arm,
+        }
+    }
 }
 
 /// Internal proc-macro entry point for `localization::t!`.
@@ -106,17 +152,13 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
             get_locale().keys()
         )
     });
-    let replacement = replacement_to_tokens(&replacement);
-    let (values, names, default_index) = hashmap_to_tokens(map, &default_locale());
+    let (replacement_bindings, replacements) = replacement_bindings(&replacement);
+    let localized_string =
+        localized_string_to_tokens(&locale, map, default_locale(), &replacements);
     quote!(
         {
-            #values;
-            let mut value = values[match format!("{}", #locale).as_str() {
-                #(#names)*
-                _ => #default_index,
-            }].to_string();
-            #replacement
-            value
+            #replacement_bindings
+            #localized_string
         }
     )
     .into()

@@ -1,29 +1,21 @@
+use std::iter::Peekable;
+
 pub type RawTokenStream = proc_macro::TokenStream;
 use proc_macro2::{Literal, Punct, TokenStream, TokenTree, token_stream::IntoIter};
 
-fn until_comma(items: &mut IntoIter) -> Option<TokenStream> {
+fn until_comma(items: &mut Peekable<IntoIter>) -> Option<TokenStream> {
     let mut ts = TokenStream::new();
-    while let Some(item) = items.clone().peekable().peek() {
-        match item {
-            TokenTree::Punct(i) => {
-                if i.as_char() == ',' {
-                    break;
-                }
-                if i.as_char() == '=' {
-                    break;
-                }
-                ts.extend(items.next());
-            }
-            _ => {
-                ts.extend(items.next());
-            }
+    while let Some(item) = items.peek() {
+        if matches!(item, TokenTree::Punct(i) if i.as_char() == ',' || i.as_char() == '=') {
+            break;
         }
+        ts.extend(items.next());
     }
     if ts.is_empty() { None } else { Some(ts) }
 }
 
-fn next_is(items: &mut IntoIter, c: char) -> Option<Punct> {
-    match items.clone().peekable().peek() {
+fn next_is(items: &mut Peekable<IntoIter>, c: char) -> Option<Punct> {
+    match items.peek() {
         Some(TokenTree::Punct(punct)) => {
             if punct.as_char() == c {
                 Some(match items.next() {
@@ -46,7 +38,7 @@ pub fn trim_literal(l: Literal) -> String {
     s
 }
 
-fn literal_string(items: &mut IntoIter) -> Option<String> {
+fn literal_string(items: &mut Peekable<IntoIter>) -> Option<String> {
     items.next().and_then(|item| match item {
         TokenTree::Literal(item) => Some(trim_literal(item)),
         _ => None,
@@ -56,7 +48,7 @@ fn literal_string(items: &mut IntoIter) -> Option<String> {
 pub fn parse_t(
     items: RawTokenStream,
 ) -> (TokenStream, String, Vec<(TokenStream, Option<TokenStream>)>) {
-    let mut items = TokenStream::from(items).into_iter();
+    let mut items = TokenStream::from(items).into_iter().peekable();
     let locale = until_comma(&mut items)
         .unwrap_or_else(|| panic!("this macro requires a locale for the first argument"));
     let _comma =
@@ -77,7 +69,7 @@ pub fn parse_t(
             replaces.push((item, None));
             continue;
         }
-        let replacement = if items.clone().peekable().peek().is_some() {
+        let replacement = if items.peek().is_some() {
             until_comma(&mut items)
         } else {
             panic!("expected a literal which is the replacement")

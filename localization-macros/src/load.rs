@@ -1,37 +1,34 @@
 use std::{
-    collections::HashMap, env, ffi::OsString, fs, io::Result as IoResult, path::PathBuf,
+    collections::{BTreeSet, HashMap},
+    env, fs,
+    io::Result as IoResult,
+    path::{Path, PathBuf},
     sync::LazyLock,
 };
 
 use serde_json::{Map, Value, from_str};
 
-fn read_dir_dirs(path: &str) -> IoResult<Vec<OsString>> {
+fn read_dir_dirs(path: &Path) -> IoResult<Vec<PathBuf>> {
     let mut dirs = vec![];
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
-            dirs.push(entry.file_name());
+            dirs.push(entry.path());
         }
     }
     Ok(dirs)
 }
 
-fn read_dir_get_all_files(path: PathBuf) -> IoResult<Vec<String>> {
+fn read_dir_get_all_files(path: &Path) -> IoResult<Vec<PathBuf>> {
     let mut files = vec![];
     for entry in fs::read_dir(path)? {
         let entry = entry?;
         let mime = entry.file_type()?;
         if mime.is_file() {
-            files.push(entry.file_name().to_string_lossy().to_string());
+            files.push(entry.path());
         }
         if mime.is_dir() {
-            let sub_files = read_dir_get_all_files(entry.path())?;
-            files.append(
-                &mut sub_files
-                    .iter()
-                    .map(|s| format!("{}/{}", entry.file_name().to_string_lossy(), s))
-                    .collect(),
-            );
+            files.append(&mut read_dir_get_all_files(&entry.path())?);
         }
     }
     Ok(files)
@@ -54,29 +51,30 @@ fn json_kv_obj(m: &Map<String, Value>) -> Vec<(String, String)> {
     vec
 }
 
-fn json_kv(s: String) -> Vec<(String, String)> {
-    let json: Value = from_str(&s).unwrap();
+fn json_kv(s: &str) -> Vec<(String, String)> {
+    let json: Value = from_str(s).unwrap();
     json.as_object().map(json_kv_obj).unwrap_or(vec![])
 }
 
 type H = HashMap<(String, String), String>;
 
-fn dir_to_json(path: PathBuf) -> H {
+fn file_key(root: &Path, path: &Path) -> String {
+    path.strip_prefix(root)
+        .unwrap()
+        .with_extension("")
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
+}
+
+fn dir_to_json(path: &Path) -> H {
     let mut hash = H::new();
-    let all_files = read_dir_get_all_files(path.clone()).unwrap();
-    let path = path.to_string_lossy().to_string();
-    for file_name in all_files {
-        let file_content = fs::read_to_string(format!("{}/{}", path, file_name)).unwrap();
-        let file_name = file_name
-            .chars()
-            .rev()
-            .skip_while(|c| *c != '.')
-            .skip(1)
-            .collect::<String>()
-            .chars()
-            .rev()
-            .collect::<String>();
-        let file = json_kv(file_content.clone());
+    let all_files = read_dir_get_all_files(path).unwrap();
+    for file_path in all_files {
+        let file_content = fs::read_to_string(&file_path).unwrap();
+        let file_name = file_key(path, &file_path);
+        let file = json_kv(&file_content);
         for (key, value) in file {
             hash.insert((file_name.clone(), key.clone()), value);
         }
@@ -86,13 +84,18 @@ fn dir_to_json(path: PathBuf) -> H {
 
 type LocaleKV = HashMap<String, HashMap<String, String>>;
 static LOCALE: LazyLock<LocaleKV> = LazyLock::new(init_locale);
+static ROOT: LazyLock<PathBuf> = LazyLock::new(|| {
+    env::var("LOCALIZATION_ROOT").map_or_else(|_| "./translations".into(), Into::into)
+});
+static DEFAULT_LOCALE: LazyLock<String> =
+    LazyLock::new(|| env::var("LOCALIZATION_DEFAULT").unwrap_or_else(|_| "en-US".to_string()));
 
-fn root() -> String {
-    env::var("LOCALIZATION_ROOT").unwrap_or_else(|_| "./translations".to_string())
+fn root() -> &'static Path {
+    &ROOT
 }
 
-pub fn default_locale() -> String {
-    env::var("LOCALIZATION_DEFAULT").unwrap_or_else(|_| "en-US".to_string())
+pub fn default_locale() -> &'static str {
+    &DEFAULT_LOCALE
 }
 
 fn backhash(h: LocaleKV) -> LocaleKV {
@@ -108,11 +111,14 @@ fn backhash(h: LocaleKV) -> LocaleKV {
 
 fn init_locale() -> LocaleKV {
     let mut hash = LocaleKV::new();
-    let locales = read_dir_dirs(&root()).unwrap();
-    for locale in locales {
-        let locale_path = locale.clone();
-        let locale = locale.to_string_lossy().to_string();
-        let ds = dir_to_json(PathBuf::from(root()).join(locale_path));
+    let locales = read_dir_dirs(root()).unwrap();
+    for locale_path in locales {
+        let locale = locale_path
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        let ds = dir_to_json(&locale_path);
         let mut map = HashMap::new();
         for ((file_name, key), value) in ds {
             map.insert(format!("{}:{}", file_name, key), value);
@@ -127,13 +133,11 @@ pub fn get_locale() -> &'static LocaleKV {
 }
 
 pub fn get_locale_list() -> Vec<String> {
-    let mut locs = vec![];
+    let mut locs = BTreeSet::new();
     for entry in get_locale().values() {
         for loc in entry.keys() {
-            if !locs.contains(loc) {
-                locs.push(loc.clone());
-            }
+            locs.insert(loc.clone());
         }
     }
-    locs
+    locs.into_iter().collect()
 }

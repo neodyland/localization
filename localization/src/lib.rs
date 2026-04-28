@@ -8,6 +8,8 @@
 ///
 /// This is useful when you want to inspect or export the full translation set
 /// at runtime.
+/// The map is constructed each time the macro expansion runs; store the result
+/// in a variable if you need to use it more than once.
 ///
 /// ```rust,ignore
 /// let all = localization::all!();
@@ -23,6 +25,8 @@ pub use localization_macros::all;
 ///
 /// This is useful when you want to inspect or export the full translation set
 /// at runtime.
+/// The map is constructed each time the macro expansion runs; store the result
+/// in a variable if you need to use it more than once.
 ///
 /// ```rust,ignore
 /// let all = localization::all!();
