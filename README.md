@@ -17,9 +17,9 @@ configuration, `all!` uses `hashbrown` for its generated maps.
 
 ```toml
 [dependencies]
-localization = "0.1.5"
+localization = "0.1"
 [build-dependencies]
-localization-build = "0.1.5"
+localization-build = "0.1"
 ```
 
 ### Create files
