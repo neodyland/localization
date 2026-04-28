@@ -1,0 +1,19 @@
+[package]
+name = "localization-basic-example"
+version.workspace = true
+edition.workspace = true
+publish = false
+autobins = false
+
+[dependencies]
+localization = { path = "../../localization" }
+
+[build-dependencies]
+localization-build = { path = "../../localization-build" }
+
+[[example]]
+name = "basic"
+path = "src/main.rs"
+
+[lints]
+workspace = true

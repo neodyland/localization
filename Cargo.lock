@@ -3,14 +3,6 @@
 version = 4
 
 [[package]]
-name = "example"
-version = "0.1.5"
-dependencies = [
- "localization",
- "localization-build",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -24,6 +16,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "localization-basic-example"
+version = "0.1.5"
+dependencies = [
+ "localization",
+ "localization-build",
+]
+
+[[package]]
 name = "localization-build"
 version = "0.1.5"
 
@@ -33,9 +33,7 @@ version = "0.1.5"
 dependencies = [
  "proc-macro2",
  "quote",
- "serde",
  "serde_json",
- "syn",
 ]
 
 [[package]]

@@ -8,6 +8,7 @@ repository.workspace = true
 readme.workspace = true
 categories.workspace = true
 documentation = "https://docs.rs/localization"
+rust-version.workspace = true
 
 [dependencies]
 localization-macros = { path = "../localization-macros", version = "0.1" }

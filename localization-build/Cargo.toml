@@ -8,6 +8,7 @@ repository.workspace = true
 readme.workspace = true
 categories.workspace = true
 documentation = "https://docs.rs/localization-build"
+rust-version.workspace = true
 
 [dependencies]
 

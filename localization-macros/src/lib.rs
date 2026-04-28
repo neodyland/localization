@@ -33,6 +33,22 @@ fn into_literal(ts: &TokenStream) -> Literal {
     Literal::string(&s)
 }
 
+fn string_literal(ts: &TokenStream) -> Option<String> {
+    let mut ts = ts.clone().into_iter();
+    let Some(TokenTree::Literal(literal)) = ts.next() else {
+        return None;
+    };
+    if ts.next().is_some() {
+        return None;
+    }
+    let literal = literal.to_string();
+    if literal.starts_with('"') {
+        Some(literal[1..literal.len() - 1].to_string())
+    } else {
+        None
+    }
+}
+
 fn replacement_bindings(
     r: &[(TokenStream, Option<TokenStream>)],
 ) -> (TokenStream, Vec<(String, Ident)>) {
@@ -109,29 +125,42 @@ fn template_to_tokens(template: &str, replacements: &[(String, Ident)]) -> Token
 
 fn localized_string_to_tokens(
     locale: &TokenStream,
+    literal_locale: Option<&str>,
     translations: &HashMap<String, String>,
     default_locale: &str,
     replacements: &[(String, Ident)],
 ) -> TokenStream {
+    let default_value = translations
+        .get(default_locale)
+        .unwrap_or_else(|| panic!("Default locale not found"));
+
+    if let Some(literal_locale) = literal_locale {
+        let value = translations.get(literal_locale).unwrap_or(default_value);
+        return template_to_tokens(value, replacements);
+    }
+
     let mut arms = Vec::new();
-    let mut default_arm = None;
+    let default_arm = template_to_tokens(default_value, replacements);
 
     for (name, value) in translations {
         let name_literal = Literal::string(name);
-        let value = template_to_tokens(value, replacements);
         if name == default_locale {
-            default_arm = Some(value.clone());
+            arms.push(quote! {
+                #name_literal => __localization_default(),
+            });
+            continue;
         }
+        let value = template_to_tokens(value, replacements);
         arms.push(quote! {
             #name_literal => #value,
         });
     }
 
-    let default_arm = default_arm.unwrap_or_else(|| panic!("Default locale not found"));
     quote! {
+        let __localization_default = || #default_arm;
         match ::core::convert::AsRef::<str>::as_ref(&#locale) {
             #(#arms)*
-            _ => #default_arm,
+            _ => __localization_default(),
         }
     }
 }
@@ -153,8 +182,14 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
         )
     });
     let (replacement_bindings, replacements) = replacement_bindings(&replacement);
-    let localized_string =
-        localized_string_to_tokens(&locale, map, default_locale(), &replacements);
+    let literal_locale = string_literal(&locale);
+    let localized_string = localized_string_to_tokens(
+        &locale,
+        literal_locale.as_deref(),
+        map,
+        default_locale(),
+        &replacements,
+    );
     quote!(
         {
             #replacement_bindings
@@ -176,6 +211,7 @@ pub fn all(_item: RawTokenStream) -> RawTokenStream {
     let mut all_coll = Vec::new();
     for (key, map) in all {
         let mut map_coll = Vec::new();
+        let map_len = map.len();
         for (key, value) in map {
             let key = Literal::string(key);
             let value = Literal::string(value);
@@ -185,14 +221,15 @@ pub fn all(_item: RawTokenStream) -> RawTokenStream {
         }
         let key = Literal::string(key);
         all_coll.push(quote! {
-            let mut map = std::collections::HashMap::<&'static str, &'static str>::new();
+            let mut map = std::collections::HashMap::<&'static str, &'static str>::with_capacity(#map_len);
             #(#map_coll)*
             all.insert(#key, map);
         });
     }
+    let all_len = all.len();
     quote!(
         {
-            let mut all = std::collections::HashMap::new();
+            let mut all = std::collections::HashMap::with_capacity(#all_len);
             #(
                 #all_coll
             )*
