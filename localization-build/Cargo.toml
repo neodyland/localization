@@ -7,7 +7,13 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 categories.workspace = true
-license-file.workspace = true
 documentation = "https://docs.rs/localization-build"
 
 [dependencies]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

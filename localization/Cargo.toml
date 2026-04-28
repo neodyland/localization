@@ -7,8 +7,14 @@ license.workspace = true
 repository.workspace = true
 readme.workspace = true
 categories.workspace = true
-license-file.workspace = true
 documentation = "https://docs.rs/localization"
 
 [dependencies]
-localization-macros = { path = "../localization-macros", version = "0.1.4" }
+localization-macros = { path = "../localization-macros", version = "0.1" }
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lints]
+workspace = true

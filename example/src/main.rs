@@ -1,6 +1,6 @@
-use localization::all;
-use localization::loc;
-use localization::t;
+//! Example binary showing how to use the public `localization` macros.
+
+use localization::{all, loc, t};
 
 struct Data {
     pub lang: String,

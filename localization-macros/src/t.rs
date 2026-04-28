@@ -1,4 +1,4 @@
-pub use proc_macro::TokenStream as RawTokenStream;
+pub type RawTokenStream = proc_macro::TokenStream;
 use proc_macro2::{Literal, Punct, TokenStream, TokenTree, token_stream::IntoIter};
 
 fn until_comma(items: &mut IntoIter) -> Option<TokenStream> {
@@ -57,28 +57,17 @@ pub fn parse_t(
     items: RawTokenStream,
 ) -> (TokenStream, String, Vec<(TokenStream, Option<TokenStream>)>) {
     let mut items = TokenStream::from(items).into_iter();
-    let locale = match until_comma(&mut items) {
-        Some(item) => item,
-        None => panic!("this macro requires a locale for the first argument"),
-    };
-    let _comma = match next_is(&mut items, ',') {
-        Some(i) => i,
-        _ => panic!("expected a comma after the locale"),
-    };
-    let key = match literal_string(&mut items) {
-        Some(item) => item,
-        None => panic!("this macro requires a key for the first argument"),
-    };
+    let locale = until_comma(&mut items)
+        .unwrap_or_else(|| panic!("this macro requires a locale for the first argument"));
+    let _comma =
+        next_is(&mut items, ',').unwrap_or_else(|| panic!("expected a comma after the locale"));
+    let key = literal_string(&mut items)
+        .unwrap_or_else(|| panic!("this macro requires a key for the first argument"));
     let mut replaces = vec![];
     while items.size_hint().0 > 0 {
-        let _comma = match next_is(&mut items, ',') {
-            Some(i) => i,
-            _ => panic!("expected a comma"),
-        };
-        let item = match until_comma(&mut items) {
-            Some(i) => i,
-            _ => panic!("expected a literal which is the name to replace"),
-        };
+        let _comma = next_is(&mut items, ',').unwrap_or_else(|| panic!("expected a comma"));
+        let item = until_comma(&mut items)
+            .unwrap_or_else(|| panic!("expected a literal which is the name to replace"));
         let has_equal = next_is(&mut items, '=').is_some();
         if !has_equal {
             if items.size_hint().0 == 0 {

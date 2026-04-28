@@ -28,7 +28,7 @@ localization-build = "0.1.5"
 }
 ```
 
-```rust
+```rust,ignore
 // build.rs
 fn main() {
     localization_build::set_root("./translations");
@@ -36,7 +36,7 @@ fn main() {
 }
 ```
 
-```rust
+```rust,ignore
 // main.rs
 fn main() {
     let name = "John";
@@ -47,10 +47,6 @@ fn main() {
 }
 ```
 
-## Documentation
-
-The documentation is available on [docs.rs](https://docs.rs/localization).
-
 ## License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+Distributed under the MIT License. See <https://github.com/neodyland/localization/blob/master/LICENSE> for more information.

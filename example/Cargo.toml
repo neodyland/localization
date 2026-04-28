@@ -9,3 +9,6 @@ localization = { path = "../localization" }
 
 [build-dependencies]
 localization-build = { path = "../localization-build" }
+
+[lints]
+workspace = true

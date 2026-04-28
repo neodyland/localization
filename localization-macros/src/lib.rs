@@ -1,5 +1,9 @@
+#![doc = include_str!("../../README.md")]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 mod load;
 mod t;
+
 use std::collections::HashMap;
 
 use load::{default_locale, get_locale};
@@ -74,7 +78,7 @@ fn into_literal(ts: &TokenStream) -> Literal {
 fn replacement_to_tokens(r: &[(TokenStream, Option<TokenStream>)]) -> TokenStream {
     let mut tokens = TokenStream::new();
     for (key, value) in r {
-        let value = if let Some(value) = value { value } else { key };
+        let value = value.as_ref().map_or(key, |value| value);
         let key = append(into_literal(key));
         tokens.extend(quote! {
             value = value.replace(
@@ -86,28 +90,22 @@ fn replacement_to_tokens(r: &[(TokenStream, Option<TokenStream>)]) -> TokenStrea
     tokens
 }
 
-/// Use the localization thing
-/// # Example
-/// ```
-/// use localization::t;
-/// fn example() {
-///   let name = "John";
-///   let age = 42;
-///   let s = t!("ja-JP","default:hello", name, age);
-///   println!("{}", s);
-/// }
-/// ```
+/// Internal proc-macro entry point for `localization::t!`.
+///
+/// Behavior is documented on the public `localization::t!` macro.
+/// This rustdoc is not intended to be consumed directly.
+/// If you need to change behavior here, also update the public docs and the
+/// implementation comments around this code.
 #[proc_macro]
 pub fn t(item: RawTokenStream) -> RawTokenStream {
     let (locale, key, replacement) = parse_t(item);
-    let map = match get_locale().get(&key) {
-        Some(map) => map,
-        None => panic!(
+    let map = get_locale().get(&key).unwrap_or_else(|| {
+        panic!(
             "Key not found: {}. Available keys: {:?}",
             key,
             get_locale().keys()
-        ),
-    };
+        )
+    });
     let replacement = replacement_to_tokens(&replacement);
     let (values, names, default_index) = hashmap_to_tokens(map, &default_locale());
     quote!(
@@ -124,6 +122,12 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
     .into()
 }
 
+/// Internal proc-macro entry point for `localization::all!`.
+///
+/// Behavior is documented on the public `localization::all!` macro.
+/// This rustdoc is not intended to be consumed directly.
+/// If you need to change behavior here, also update the public docs and the
+/// implementation comments around this code.
 #[proc_macro]
 pub fn all(_item: RawTokenStream) -> RawTokenStream {
     let all = load::get_locale();
@@ -156,7 +160,12 @@ pub fn all(_item: RawTokenStream) -> RawTokenStream {
     .into()
 }
 
-/// get all localization
+/// Internal proc-macro entry point for `localization::loc!`.
+///
+/// Behavior is documented on the public `localization::loc!` macro.
+/// This rustdoc is not intended to be consumed directly.
+/// If you need to change behavior here, also update the public docs and the
+/// implementation comments around this code.
 #[proc_macro]
 pub fn loc(_item: RawTokenStream) -> RawTokenStream {
     let loc = load::get_locale_list();

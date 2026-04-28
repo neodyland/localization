@@ -1,14 +1,13 @@
-use serde_json::{Map, Value};
-use std::collections::HashMap;
-use std::ffi::OsString;
-use std::fs::read_dir as std_read_dir;
-use std::io::Result as IoResult;
-use std::path::PathBuf;
-use std::sync::LazyLock;
+use std::{
+    collections::HashMap, env, ffi::OsString, fs, io::Result as IoResult, path::PathBuf,
+    sync::LazyLock,
+};
+
+use serde_json::{Map, Value, from_str};
 
 fn read_dir_dirs(path: &str) -> IoResult<Vec<OsString>> {
     let mut dirs = vec![];
-    for entry in std_read_dir(path)? {
+    for entry in fs::read_dir(path)? {
         let entry = entry?;
         if entry.file_type()?.is_dir() {
             dirs.push(entry.file_name());
@@ -19,7 +18,7 @@ fn read_dir_dirs(path: &str) -> IoResult<Vec<OsString>> {
 
 fn read_dir_get_all_files(path: PathBuf) -> IoResult<Vec<String>> {
     let mut files = vec![];
-    for entry in std_read_dir(path)? {
+    for entry in fs::read_dir(path)? {
         let entry = entry?;
         let mime = entry.file_type()?;
         if mime.is_file() {
@@ -56,7 +55,7 @@ fn json_kv_obj(m: &Map<String, Value>) -> Vec<(String, String)> {
 }
 
 fn json_kv(s: String) -> Vec<(String, String)> {
-    let json: Value = serde_json::from_str(&s).unwrap();
+    let json: Value = from_str(&s).unwrap();
     json.as_object().map(json_kv_obj).unwrap_or(vec![])
 }
 
@@ -67,7 +66,7 @@ fn dir_to_json(path: PathBuf) -> H {
     let all_files = read_dir_get_all_files(path.clone()).unwrap();
     let path = path.to_string_lossy().to_string();
     for file_name in all_files {
-        let file_content = std::fs::read_to_string(format!("{}/{}", path, file_name)).unwrap();
+        let file_content = fs::read_to_string(format!("{}/{}", path, file_name)).unwrap();
         let file_name = file_name
             .chars()
             .rev()
@@ -89,11 +88,11 @@ type LocaleKV = HashMap<String, HashMap<String, String>>;
 static LOCALE: LazyLock<LocaleKV> = LazyLock::new(init_locale);
 
 fn root() -> String {
-    std::env::var("LOCALIZATION_ROOT").unwrap_or("./translations".to_string())
+    env::var("LOCALIZATION_ROOT").unwrap_or_else(|_| "./translations".to_string())
 }
 
 pub fn default_locale() -> String {
-    std::env::var("LOCALIZATION_DEFAULT").unwrap_or("en-US".to_string())
+    env::var("LOCALIZATION_DEFAULT").unwrap_or_else(|_| "en-US".to_string())
 }
 
 fn backhash(h: LocaleKV) -> LocaleKV {
