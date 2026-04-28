@@ -10,6 +10,7 @@ categories.workspace = true
 keywords.workspace = true
 documentation = "https://docs.rs/localization"
 rust-version.workspace = true
+include = ["Cargo.toml", "README.md", "build.rs", "src/**"]
 
 [dependencies]
 hashbrown = { version = "0.17.0", default-features = false, features = [

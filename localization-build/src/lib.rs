@@ -1,4 +1,4 @@
-#![doc = include_str!("../../README.md")]
+#![doc = include_str!(env!("LOCALIZATION_README"))]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 /// Sets the root directory that `localization` macros read at compile time.

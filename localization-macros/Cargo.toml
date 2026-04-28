@@ -10,6 +10,7 @@ categories.workspace = true
 keywords.workspace = true
 documentation = "https://docs.rs/localization-macros"
 rust-version.workspace = true
+include = ["Cargo.toml", "README.md", "build.rs", "src/**"]
 
 [dependencies]
 proc-macro2 = "1"
