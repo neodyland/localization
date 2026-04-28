@@ -6,7 +6,10 @@
 
 localization is a lightweight localization implementation written in Rust.
 
-Easy, error on compile time, zero runtime dependency.
+Easy, error on compile time, zero runtime dependency by default.
+
+The `localization` crate supports `no_std` with the `alloc` feature. In that
+configuration, `all!` uses `hashbrown` for its generated maps.
 
 ## Getting Started
 

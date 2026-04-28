@@ -57,6 +57,7 @@ jobs:
         with:
           toolchain: ${{ env.RUST_NIGHTLY }}
           components: clippy
+          targets: thumbv7em-none-eabihf
 
       - name: Restore cargo cache
         uses: Swatinem/rust-cache@v2
@@ -71,6 +72,24 @@ jobs:
 
       - name: Run clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      - name: Check localization default features
+        run: cargo check -p localization --locked
+
+      - name: Check localization alloc feature
+        run: cargo check -p localization --no-default-features --features alloc --locked
+
+      - name: Check localization alloc feature on no_std target
+        run: cargo check -p localization --no-default-features --features alloc --target thumbv7em-none-eabihf --locked
+
+      - name: Check localization all features
+        run: cargo check -p localization --all-features --locked
+
+      - name: Run clippy for localization alloc feature
+        run: cargo clippy -p localization --no-default-features --features alloc --locked -- -D warnings
+
+      - name: Run basic example
+        run: cargo run --example basic --locked
 
       - name: Run tests
         run: cargo test --workspace --all-targets --locked

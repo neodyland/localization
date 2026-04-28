@@ -1,7 +1,25 @@
 #![doc = include_str!("../../README.md")]
 #![cfg_attr(docsrs, feature(doc_cfg))]
+#![cfg_attr(not(feature = "std"), no_std)]
 
-/// Expands to all loaded translations as a nested [`std::collections::HashMap`].
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc;
+
+#[cfg(not(any(feature = "std", feature = "alloc")))]
+compile_error!("localization requires either the `std` or `alloc` feature");
+
+#[doc(hidden)]
+pub mod __private {
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
+    pub use alloc::{format, string::String};
+    #[cfg(feature = "std")]
+    pub use std::{collections::HashMap, format, string::String};
+
+    #[cfg(all(not(feature = "std"), feature = "alloc"))]
+    pub use hashbrown::HashMap;
+}
+
+/// Expands to all loaded translations as a nested map.
 ///
 /// The outer map is keyed by translation key such as `"default:hello"`.
 /// Each value is another map from locale name to the localized string.
@@ -18,7 +36,7 @@
 #[cfg(not(doc))]
 pub use localization_macros::all;
 
-/// Expands to all loaded translations as a nested [`std::collections::HashMap`].
+/// Expands to all loaded translations as a nested map.
 ///
 /// The outer map is keyed by translation key such as `"default:hello"`.
 /// Each value is another map from locale name to the localized string.

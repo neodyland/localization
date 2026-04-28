@@ -2,11 +2,15 @@
 name = "localization-basic-example"
 version.workspace = true
 edition.workspace = true
+categories.workspace = true
+keywords.workspace = true
 publish = false
 autobins = false
 
 [dependencies]
-localization = { path = "../../localization" }
+localization = { path = "../../localization", default-features = false, features = [
+    "alloc",
+] }
 
 [build-dependencies]
 localization-build = { path = "../../localization-build" }

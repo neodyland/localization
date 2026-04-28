@@ -7,6 +7,7 @@ mod t;
 use std::collections::HashMap;
 
 use load::{default_locale, get_locale};
+use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Ident, Literal, TokenStream, TokenTree};
 use quote::{format_ident, quote};
 use t::{RawTokenStream, parse_t};
@@ -49,7 +50,19 @@ fn string_literal(ts: &TokenStream) -> Option<String> {
     }
 }
 
+fn runtime_crate() -> TokenStream {
+    match crate_name("localization") {
+        Ok(FoundCrate::Itself) => quote!(crate),
+        Ok(FoundCrate::Name(name)) => {
+            let ident = format_ident!("{name}");
+            quote!(::#ident)
+        }
+        Err(_) => quote!(::localization),
+    }
+}
+
 fn replacement_bindings(
+    runtime_crate: &TokenStream,
     r: &[(TokenStream, Option<TokenStream>)],
 ) -> (TokenStream, Vec<(String, Ident)>) {
     let mut bindings = TokenStream::new();
@@ -60,14 +73,18 @@ fn replacement_bindings(
         let placeholder = format!("{{{{{name}}}}}");
         let ident = format_ident!("__localization_replacement_{i}");
         bindings.extend(quote! {
-            let #ident = ::std::format!("{}", #value);
+            let #ident = #runtime_crate::__private::format!("{}", #value);
         });
         replacements.push((placeholder, ident));
     }
     (bindings, replacements)
 }
 
-fn template_to_tokens(template: &str, replacements: &[(String, Ident)]) -> TokenStream {
+fn template_to_tokens(
+    runtime_crate: &TokenStream,
+    template: &str,
+    replacements: &[(String, Ident)],
+) -> TokenStream {
     let mut pos = 0;
     let mut literal_len = 0;
     let mut parts = Vec::new();
@@ -116,7 +133,7 @@ fn template_to_tokens(template: &str, replacements: &[(String, Ident)]) -> Token
 
     quote! {
         {
-            let mut value = ::std::string::String::with_capacity(#literal_len #(+ #replacement_lens)*);
+            let mut value = #runtime_crate::__private::String::with_capacity(#literal_len #(+ #replacement_lens)*);
             #(#parts)*
             value
         }
@@ -124,6 +141,7 @@ fn template_to_tokens(template: &str, replacements: &[(String, Ident)]) -> Token
 }
 
 fn localized_string_to_tokens(
+    runtime_crate: &TokenStream,
     locale: &TokenStream,
     literal_locale: Option<&str>,
     translations: &HashMap<String, String>,
@@ -136,11 +154,11 @@ fn localized_string_to_tokens(
 
     if let Some(literal_locale) = literal_locale {
         let value = translations.get(literal_locale).unwrap_or(default_value);
-        return template_to_tokens(value, replacements);
+        return template_to_tokens(runtime_crate, value, replacements);
     }
 
     let mut arms = Vec::new();
-    let default_arm = template_to_tokens(default_value, replacements);
+    let default_arm = template_to_tokens(runtime_crate, default_value, replacements);
 
     for (name, value) in translations {
         let name_literal = Literal::string(name);
@@ -150,7 +168,7 @@ fn localized_string_to_tokens(
             });
             continue;
         }
-        let value = template_to_tokens(value, replacements);
+        let value = template_to_tokens(runtime_crate, value, replacements);
         arms.push(quote! {
             #name_literal => #value,
         });
@@ -173,6 +191,7 @@ fn localized_string_to_tokens(
 /// implementation comments around this code.
 #[proc_macro]
 pub fn t(item: RawTokenStream) -> RawTokenStream {
+    let runtime_crate = runtime_crate();
     let (locale, key, replacement) = parse_t(item);
     let map = get_locale().get(&key).unwrap_or_else(|| {
         panic!(
@@ -181,9 +200,10 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
             get_locale().keys()
         )
     });
-    let (replacement_bindings, replacements) = replacement_bindings(&replacement);
+    let (replacement_bindings, replacements) = replacement_bindings(&runtime_crate, &replacement);
     let literal_locale = string_literal(&locale);
     let localized_string = localized_string_to_tokens(
+        &runtime_crate,
         &locale,
         literal_locale.as_deref(),
         map,
@@ -207,6 +227,7 @@ pub fn t(item: RawTokenStream) -> RawTokenStream {
 /// implementation comments around this code.
 #[proc_macro]
 pub fn all(_item: RawTokenStream) -> RawTokenStream {
+    let runtime_crate = runtime_crate();
     let all = load::get_locale();
     let mut all_coll = Vec::new();
     for (key, map) in all {
@@ -221,7 +242,7 @@ pub fn all(_item: RawTokenStream) -> RawTokenStream {
         }
         let key = Literal::string(key);
         all_coll.push(quote! {
-            let mut map = std::collections::HashMap::<&'static str, &'static str>::with_capacity(#map_len);
+            let mut map = #runtime_crate::__private::HashMap::<&'static str, &'static str>::with_capacity(#map_len);
             #(#map_coll)*
             all.insert(#key, map);
         });
@@ -229,7 +250,7 @@ pub fn all(_item: RawTokenStream) -> RawTokenStream {
     let all_len = all.len();
     quote!(
         {
-            let mut all = std::collections::HashMap::with_capacity(#all_len);
+            let mut all = #runtime_crate::__private::HashMap::with_capacity(#all_len);
             #(
                 #all_coll
             )*
