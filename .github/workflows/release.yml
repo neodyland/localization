@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+  RUST_NIGHTLY: nightly-2026-04-11
+
+jobs:
+  release:
+    name: publish crates and create GitHub release
+    runs-on: ubuntu-latest
+    environment: crates-io
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_NIGHTLY }}
+          targets: thumbv7em-none-eabihf
+
+      - name: Restore cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ubuntu-nightly-release
+          cache-all-crates: true
+          cache-workspace-crates: true
+          cache-on-failure: true
+
+      - name: Check tag version
+        run: |
+          set -euo pipefail
+          version="$(cargo pkgid -p localization | sed 's/.*#//')"
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "${version}" != "${tag_version}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match localization version ${version}" >&2
+            exit 1
+          fi
+          echo "RELEASE_VERSION=${version}" >> "${GITHUB_ENV}"
+
+      - name: Check workspace
+        run: cargo check --workspace --locked
+
+      - name: Check localization alloc feature
+        run: cargo check -p localization --no-default-features --features alloc --locked
+
+      - name: Check localization alloc feature on no_std target
+        run: cargo check -p localization --no-default-features --features alloc --target thumbv7em-none-eabihf --locked
+
+      - name: Package crates
+        run: |
+          set -euo pipefail
+          cargo package -p localization-macros --locked
+          cargo package -p localization-build --locked
+          cargo package -p localization --locked
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "CARGO_REGISTRY_TOKEN secret is required to publish crates" >&2
+            exit 1
+          fi
+
+          crate_status() {
+            curl --silent --show-error --output /dev/null --write-out "%{http_code}" \
+              "https://crates.io/api/v1/crates/$1/${RELEASE_VERSION}"
+          }
+
+          publish_crate() {
+            crate="$1"
+            status="$(crate_status "${crate}")"
+            case "${status}" in
+              200)
+                echo "${crate} ${RELEASE_VERSION} is already published; skipping"
+                ;;
+              404)
+                cargo publish -p "${crate}" --locked
+                ;;
+              *)
+                echo "failed to query ${crate} ${RELEASE_VERSION}: HTTP ${status}" >&2
+                exit 1
+                ;;
+            esac
+          }
+
+          publish_crate localization-macros
+          publish_crate localization-build
+          sleep 30
+          publish_crate localization
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            echo "GitHub release ${GITHUB_REF_NAME} already exists; skipping"
+            exit 0
+          fi
+          gh release create "${GITHUB_REF_NAME}" \
+            --verify-tag \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
